@@ -1,0 +1,487 @@
+{
+  "name": "T10_Email_Ticket_AutoRouter",
+  "nodes": [
+    {
+      "id": "115c3ce2-3f88-424a-8984-6ecb98b5d505",
+      "name": "Note_75834a9e",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        50
+      ],
+      "parameters": {
+        "content": "Created by Oyekola Ololade\nhttps://www.linkedin.com/in/ololade-oyekola-5b1797397/\nn8n Template Library - Gumroad",
+        "width": 300,
+        "height": 100,
+        "color": 4
+      }
+    },
+    {
+      "id": "840a8afc-503f-4512-8996-58bd56e75b8e",
+      "name": "Email Ticket Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "df902241-abbe-443f-b7e7-d5a3d243a6e2",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-ticket",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "7c12a664-c00b-42d8-bcd1-f9f65135861a",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        450,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1a0c2463-1ce3-4b2a-a9a9-949bf11b2f81",
+              "name": "subject",
+              "value": "={{ $json.body.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "a538b5c3-1dbc-4496-aa8c-422bcb362bab",
+              "name": "body",
+              "value": "={{ $json.body.body }}",
+              "type": "string"
+            },
+            {
+              "id": "3d6c5180-4374-41dd-b99d-2280e9c6d449",
+              "name": "from",
+              "value": "={{ $json.body.from }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f2bfddfd-3468-4aff-b072-edf92c6c8b12",
+      "name": "Claude Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_CLAUDE_API_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-3-haiku-20240307"
+            },
+            {
+              "name": "max_tokens",
+              "value": 500
+            },
+            {
+              "name": "messages",
+              "value": "[{\"role\":\"user\",\"content\":\"Classify email priority (urgent/normal/low) and department (sales/support/billing). Subject: {{ $json.subject }} Body: {{ $json.body }}\"}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "78e1eee9-33db-4ac9-a53c-d1c7af1ed2da",
+      "name": "Classification OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        850,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "98e88cf4-67be-4e75-a33f-2c5de7216b16",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2d32ecc2-4afc-4613-8c36-759caa58a5d7",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1050,
+        250
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1b51b052-1fc1-44bd-a0cc-01b3888536f4",
+              "name": "priority",
+              "value": "={{ $json.content[0].text.match(/priority:\\s*(\\w+)/i)[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "7a0ce268-f80e-4582-8f37-df77f1c07e65",
+              "name": "department",
+              "value": "={{ $json.content[0].text.match(/department:\\s*(\\w+)/i)[1] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "def563e6-46ba-4ce5-91f5-6f65c06e27dd",
+      "name": "Create Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1250,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_TICKET_SYSTEM_API_URL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TICKET_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.body }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority }}"
+            },
+            {
+              "name": "department",
+              "value": "={{ $json.department }}"
+            },
+            {
+              "name": "from",
+              "value": "={{ $json.from }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "749e7dc3-ac0c-4d4c-8980-f57f2610474a",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1450,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SENDGRID_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "personalizations",
+              "value": "[{\"to\": [{\"email\": \"{{ $json.from }}\"}]}]"
+            },
+            {
+              "name": "from_email",
+              "value": "{\"email\": \"support@yourcompany.com\"}"
+            },
+            {
+              "name": "subject",
+              "value": "Ticket Created"
+            },
+            {
+              "name": "content",
+              "value": "[{\"type\": \"text/plain\", \"value\": \"Your ticket has been escalated to {{ $json.department }} (Priority: {{ $json.priority }})\"}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "978c7f34-dddc-4cac-94f5-0a720530814b",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1050,
+        450
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aeac82be-04e6-49ce-ab5f-fc614d809672",
+              "name": "error",
+              "value": "Classification failed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2968ab54-c38e-41f1-b84c-a151d73d1a59",
+      "name": "Fallback Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1250,
+        450
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_TICKET_SYSTEM_API_URL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": false,
+        "headerParameters": {
+          "parameters": []
+        },
+        "options": {},
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.body }}"
+            },
+            {
+              "name": "priority",
+              "value": "normal"
+            },
+            {
+              "name": "department",
+              "value": "support"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c959951c-9f01-4945-912d-e076a45675fb",
+      "name": "End",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Email Ticket Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Email": {
+      "main": [
+        [
+          {
+            "node": "Claude Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Classify": {
+      "main": [
+        [
+          {
+            "node": "Classification OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classification OK?": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "Create Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Fallback Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Ticket": {
+      "main": [
+        [
+          {
+            "node": "End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    "Gumroad",
+    "Production",
+    "Template",
+    "Oyekola Ololade"
+  ],
+  "pinData": {},
+  "staticData": null
+}
