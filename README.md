@@ -35,8 +35,17 @@ Classifies inbound support emails by priority and department with Claude, then f
 
 ## Architecture
 
-Open the [visual project page](./index.html#architecture) for the flow derived from the sanitized export.
+The diagram below represents the sanitized template flow. External services, credentials, and environment-specific identifiers must be configured before execution.
 
+```mermaid
+flowchart TD
+    A["Email ticket webhook"] --> B["Parse sender, subject, and body"]
+    B --> C["Claude priority and department classification"]
+    C --> D{"Classification succeeds?"}
+    D -->|Yes| E["Create classified ticket"]
+    E --> F["Send confirmation email"]
+    D -->|No| G["Create normal-priority fallback ticket"]
+```
 
 ## Workflow
 
